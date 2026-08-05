@@ -17,6 +17,12 @@ except ImportError:
     PIL_OK = False
 
 try:
+    import pillow_heif
+    HEIF_OK = True
+except ImportError:
+    HEIF_OK = False
+
+try:
     import yt_dlp
     YTDLP_OK = True
 except ImportError:
@@ -110,7 +116,18 @@ LICENSE = LicenseManager()
 def convert_image(src: str, dst_fmt: str, out_dir: str) -> str:
     if not PIL_OK:
         raise RuntimeError("مكتبة Pillow غير مثبتة. شغّل: pip install pillow")
-    img = Image.open(src)
+    
+    # Handle HEIC/HEIF files (iPhone photos)
+    src_path = Path(src)
+    if src_path.suffix.upper() in (".HEIC", ".HEIF"):
+        if not HEIF_OK:
+            raise RuntimeError("دعم HEIC غير متوفر. شغّل: pip install pillow-heif")
+        # Register HEIF plugin with Pillow
+        pillow_heif.register_heif_opener()
+        img = Image.open(src)
+    else:
+        img = Image.open(src)
+    
     fmt = dst_fmt.upper().replace("JPG","JPEG")
     base = Path(src).stem
     ext  = dst_fmt.lower() if dst_fmt.lower() != "jpeg" else "jpg"
@@ -650,10 +667,11 @@ if __name__ == "__main__":
     # Quick dependency check
     missing = []
     if not PIL_OK:   missing.append("pillow")
+    if not HEIF_OK:  missing.append("pillow-heif (for HEIC support)")
     if not YTDLP_OK: missing.append("yt-dlp")
     if missing:
         print(f"\n⚠️  مكتبات ناقصة: {', '.join(missing)}")
-        print(f"شغّل: pip install {' '.join(missing)}\n")
+        print(f"شغّل: pip install {' '.join(missing).split(' (')[0]}\n")
 
     app = MasterConvertingApp()
     app.mainloop()
